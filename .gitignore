@@ -1,0 +1,24 @@
+# Ignore local python version file (specific to your machine's environment)
+.python-version
+
+# Ignore uv runtime directories
+.uv/
+.venv/
+
+# Ignore Data and logs files as it can be large and generated from the source
+Data/
+logs/
+output_mark/
+output_markdowns/
+Kaggle/
+Final/
+tests/
+__pycache__/
+
+# Individual files that may contain sensitive information
+apikey.txt
+copy_markdown.sh
+
+# Ignore .env files that may contain sensitive information
+.env
+
