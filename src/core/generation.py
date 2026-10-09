@@ -345,9 +345,9 @@ Return ONLY JSON: {"evaluation": "correct", "refined_query": null, "reason": "..
         # Route and Format context via ContextRouter
         context = self.router.route_and_format(relevant_chunks, history)
 
-        prompt = f"""You are a principal 3GPP standards architect. Answer the question based strictly on the provided context.
+        prompt = f"""You are a principal 3GPP standards architect. First, write a detailed text answer based strictly on the provided context.
 Use ## headers, tables, and exact spec citations [Source N]. 
-End your answer with a JSON block: {{"confidence": 0.0-1.0}}
+Strictly at the very end of your response, append a JSON block: {{"confidence": 0.0-1.0}}
 
 CONTEXT:
 {context}

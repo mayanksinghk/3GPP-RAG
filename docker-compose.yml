@@ -10,6 +10,7 @@ services:
     volumes:
       # Persistent named volume preserves all vectors, payloads, and indexes across container restarts
       - qdrant_storage:/qdrant/storage
+      - ./exported_snapshots:/qdrant/snapshots
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/localhost/6333' || exit 1"]
       interval: 5s
@@ -39,6 +40,7 @@ services:
     #           capabilities: [gpu]
 
   # ── One-Time Model Provisioner ──────────────────────────────────────────────
+ # ── One-Time Model Provisioner ──────────────────────────────────────────────
   model-init:
     image: ollama/ollama:latest
     container_name: rag-model-init
@@ -51,6 +53,7 @@ services:
       echo 'Checking and pulling required local models...';
       ollama pull nomic-embed-text;
       ollama pull qwen2.5-coder:1.5b;
+      ollama pull qwen2.5-coder:7b;
       echo 'Local models verified and cached.';
       "
     restart: "no"
@@ -61,7 +64,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: rag-app
-    command: ["download-and-serve"]
+    command: ["serve"]
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -80,6 +83,26 @@ services:
       model-init:
         condition: service_completed_successfully
 
+# ── AnythingLLM Frontend ────────────────────────────────────────────────────
+  anythingllm:
+    image: mintplexlabs/anythingllm
+    container_name: anythingllm
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - anythingllm_storage:/app/server/storage
+    environment:
+      - STORAGE_DIR=/app/server/storage
+      - LLM_PROVIDER=generic-openai
+      - OPENAI_BASE_PATH=http://rag-app:8000/v1
+      - OPENAI_API_KEY=sk-dummy-key
+      - GENERIC_OPENAI_MODEL_PREF=3gpp-rag-engine
+      - GENERIC_OPENAI_MODEL_TOKEN_LIMIT=4096
+      - INITIAL_ONBOARDING=false
+    depends_on:
+      - rag-app
+
 # ── Persistent Storage Definitions ────────────────────────────────────────────
 volumes:
   qdrant_storage:
@@ -88,3 +111,5 @@ volumes:
     name: rag_ollama_models
   uv_cache:
     name: rag_uv_cache
+  anythingllm_storage:
+    name: rag_anythingllm_storage

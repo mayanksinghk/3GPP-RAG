@@ -108,39 +108,42 @@ class QdrantManager:
         )
 
     def hybrid_search(self, query: str, query_emb: List[float], top_k: int = 10, spec_filter: str = None) -> List[Dict]:
-        query_filter = None
-        
-        if spec_filter:
-            query_filter = models.Filter(
-                must=[
-                    models.FieldCondition(
-                        key="spec_number",
-                        match=models.MatchValue(value=spec_filter)
-                    )
-                ]
+            query_filter = None
+            
+            if spec_filter:
+                query_filter = models.Filter(
+                    must=[
+                        models.FieldCondition(
+                            key="spec_number",
+                            match=models.MatchValue(value=spec_filter)
+                        )
+                    ]
+                )
+                
+            # 1. Use query_points instead of search
+            # 2. Use query= instead of query_vector=
+            response = self.client.query_points(
+                collection_name=self.collection_name,
+                query=query_emb,
+                query_filter=query_filter,
+                limit=top_k,
+                with_payload=True
             )
             
-        search_result = self.client.search(
-            collection_name=self.collection_name,
-            query_vector=query_emb,
-            query_filter=query_filter,
-            limit=top_k,
-            with_payload=True
-        )
-        
-        results = []
-        for scored_point in search_result:
-            payload = scored_point.payload or {}
-            results.append({
-                "chunk_id": payload.get("chunk_id", str(scored_point.id)),
-                "spec_number": payload.get("spec_number", ""),
-                "release": payload.get("release", ""),
-                "section_path": payload.get("section_path", ""),
-                "doc_type": payload.get("doc_type", "TS"),
-                "chunk_text": payload.get("chunk_text", ""),
-                "score": round(scored_point.score, 4)
-            })
-        return results
+            results = []
+            # 3. Iterate over response.points instead of the raw response
+            for scored_point in response.points:
+                payload = scored_point.payload or {}
+                results.append({
+                    "chunk_id": payload.get("chunk_id", str(scored_point.id)),
+                    "spec_number": payload.get("spec_number", ""),
+                    "release": payload.get("release", ""),
+                    "section_path": payload.get("section_path", ""),
+                    "doc_type": payload.get("doc_type", "TS"),
+                    "chunk_text": payload.get("chunk_text", ""),
+                    "score": round(scored_point.score, 4)
+                })
+            return results
 
 # ==========================================
 # 3. Main Indexing Orchestrator

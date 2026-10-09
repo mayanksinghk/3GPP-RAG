@@ -13,6 +13,7 @@ from tqdm import tqdm
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 # Ensure these imports match your actual file structure
@@ -106,12 +107,35 @@ def chat_completions(req: ChatCompletionRequest):
             answer_text += f"- [{i}] TS {c.get('spec', '?')} §{c.get('section', '?')} (Score: {c.get('score', 0):.2f})\n"
         answer_text += f"\n*Retrieval Confidence: {confidence:.0%}*"
 
-    # Construct standard OpenAI response payload
+    response_id = f"chatcmpl-{uuid.uuid4()}"
+    created_time = int(time.time())
+    model_name = req.model or "3gpp-rag-engine"
+
+    # If AnythingLLM requests a stream, yield the answer in SSE format
+    if req.stream:
+        def generate():
+            chunk = {
+                "id": response_id,
+                "object": "chat.completion.chunk",
+                "created": created_time,
+                "model": model_name,
+                "choices": [{
+                    "index": 0,
+                    "delta": {"role": "assistant", "content": answer_text},
+                    "finish_reason": "stop"
+                }]
+            }
+            yield f"data: {json.dumps(chunk)}\n\n"
+            yield "data: [DONE]\n\n"
+            
+        return StreamingResponse(generate(), media_type="text/event-stream")
+
+    # Standard fallback for terminal curl tests
     return {
-        "id": f"chatcmpl-{uuid.uuid4()}",
+        "id": response_id,
         "object": "chat.completion",
-        "created": int(time.time()),
-        "model": req.model or "3gpp-rag-engine",
+        "created": created_time,
+        "model": model_name,
         "choices": [
             {
                 "index": 0,

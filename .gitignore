@@ -14,6 +14,8 @@ Kaggle/
 Final/
 tests/
 __pycache__/
+exported_snapshots/
+storage/
 
 # Individual files that may contain sensitive information
 apikey.txt
